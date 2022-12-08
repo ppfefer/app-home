@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+  namespace: minio-system
+  annotations:
+    prometheus.io/path: /minio/prometheus/metrics
+    prometheus.io/port: "9000"
+    prometheus.io/scrape: "true"
+spec:
+  selector:
+    matchLabels:
+      app: minio # has to match .spec.template.metadata.labels
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      # Volumes used by this deployment
+      volumes:
+      - name: data
+        # This volume is based on PVC
+        persistentVolumeClaim:
+          # Name of the PVC created earlier
+          claimName: minio-pvc
+      containers:
+      - name: minio
+        # Volume mounts for this container
+        volumeMounts:
+        # Volume 'data' is mounted to path '/data'
+        - name: data 
+          mountPath: /data
+        # Pulls the latest Minio image from Docker Hub
+        image: minio/minio
+        args: ['server', '/data', '--console-address', ':9001']
+        env:
+        # MinIO access key and secret key
+        - name: MINIO_ACCESS_KEY
+          valueFrom:
+           secretKeyRef:
+            key: minio-access-key
+            name: minio-secrets   
+        - name: MINIO_SECRET_KEY
+          valueFrom: 
+           secretKeyRef:       
+            key: minio-secret-key
+            name: minio-secrets
+        ports:
+        - containerPort: 9000
+        # Readiness probe detects situations when MinIO server instance
+        # is not ready to accept traffic. Kubernetes doesn't forward
+        # traffic to the pod while readiness checks fail.
+        readinessProbe:
+          httpGet:
+            path: /minio/health/ready
+            port: 9000
+          initialDelaySeconds: 120
+          periodSeconds: 20
+        # Liveness probe detects situations where MinIO server instance
+        # is not working properly and needs restart. Kubernetes automatically
+        # restarts the pods if liveness checks fail.
+        livenessProbe:
+          httpGet:
+            path: /minio/health/live
+            port: 9000
+          initialDelaySeconds: 120
+          periodSeconds: 20

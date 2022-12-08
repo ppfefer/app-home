@@ -1,0 +1,21 @@
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: minio
+  namespace: minio-system
+  annotations: 
+    kubernetes.io/ingress.class: traefik-external
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`minio.local.pfefer.xyz`)
+      kind: Rule
+      services:
+        - name: minio-service
+          port: 9000
+      middlewares:
+        - name: default-headers
+  tls:
+    secretName: local-pfefer-xyz-tls
