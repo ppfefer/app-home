@@ -10,4 +10,4 @@ spec:
     port: minio
   selector:
     matchLabels:
-      app: minio-service
+      app: minio
